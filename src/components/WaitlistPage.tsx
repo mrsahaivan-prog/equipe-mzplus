@@ -39,42 +39,44 @@ function getRelativeTime(isoString: string): string {
 }
 
 const getSimulatedCount = (): number => {
-  // 1. Check if admin custom simulated count is set
+  let startBase = 200;
   const adminCustom = localStorage.getItem('mz_custom_simulated_count');
   if (adminCustom) {
     const parsedAdmin = parseInt(adminCustom, 10);
     if (!isNaN(parsedAdmin)) {
-      return parsedAdmin;
+      startBase = parsedAdmin;
     }
   }
 
   const now = Date.now();
-  const startTime = new Date("2026-07-03T23:00:00Z").getTime();
+  // Set start time to July 4th at 03:00:00 UTC (restarted algorithm)
+  const startTime = new Date("2026-07-04T03:00:00Z").getTime();
   const launchTime = new Date("2026-07-04T20:00:00Z").getTime();
   
-  let baseCount = 200;
+  let baseCount = startBase;
   if (now > startTime) {
     if (now >= launchTime) {
       const postElapsed = Math.floor((now - launchTime) / 1000);
-      baseCount = 1750 + Math.floor(postElapsed / 1200);
+      baseCount = (startBase + 1550) + Math.floor(postElapsed / 1200);
     } else {
       const elapsedSeconds = Math.floor((now - startTime) / 1000);
       const totalSeconds = Math.floor((launchTime - startTime) / 1000);
       const pct = elapsedSeconds / totalSeconds;
-      const baseVal = 200 + 1300 * Math.pow(pct, 1.2); // Start at 200, grow to 1500+
+      const baseVal = startBase + 1300 * Math.pow(pct, 1.2); 
       const liveTicks = Math.floor(elapsedSeconds / 80);
       baseCount = Math.floor(baseVal + liveTicks);
     }
   }
 
-  const finalCount = Math.max(200, Math.min(1800, baseCount));
+  const finalCount = Math.max(startBase, Math.min(startBase + 1600, baseCount));
 
-  // 2. Ensure it never drops back by storing max seen in localStorage
+  // 2. Ensure it never drops back unless admin explicitly changed/lowered the custom count
   try {
     const savedMax = localStorage.getItem('mz_permanent_counter_v3');
     if (savedMax) {
       const parsedMax = parseInt(savedMax, 10);
-      if (!isNaN(parsedMax) && parsedMax > finalCount) {
+      // If the difference is huge (e.g. going from 1540 to 200), bypass the old permanent counter
+      if (!isNaN(parsedMax) && parsedMax > finalCount && Math.abs(parsedMax - finalCount) < 150) {
         return parsedMax;
       }
     }

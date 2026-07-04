@@ -30,6 +30,47 @@ export default function App() {
     setRefreshKey(prev => prev + 1);
   };
 
+  // Fetch universal settings on mount and poll every 4 seconds for real-time synchronization
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch('/api/settings');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.settings) {
+            const { customCount, countdownOverride, forceLaunch, customLaunchTime } = data.settings;
+            
+            const oldCount = localStorage.getItem('mz_custom_simulated_count');
+            const oldOverride = localStorage.getItem('mz_admin_override_countdown');
+            const oldForce = localStorage.getItem('mz_admin_force_launch');
+            const oldTime = localStorage.getItem('mz_custom_launch_time');
+            
+            const hasChanged = 
+              oldCount !== customCount.toString() ||
+              oldOverride !== (countdownOverride ? 'true' : 'false') ||
+              oldForce !== (forceLaunch ? 'true' : 'false') ||
+              oldTime !== (customLaunchTime || '');
+              
+            localStorage.setItem('mz_custom_simulated_count', customCount.toString());
+            localStorage.setItem('mz_admin_override_countdown', countdownOverride ? 'true' : 'false');
+            localStorage.setItem('mz_admin_force_launch', forceLaunch ? 'true' : 'false');
+            localStorage.setItem('mz_custom_launch_time', customLaunchTime || '');
+            
+            if (hasChanged) {
+              setRefreshKey(prev => prev + 1);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching universal settings:", err);
+      }
+    };
+    
+    fetchSettings();
+    const interval = setInterval(fetchSettings, 4000);
+    return () => clearInterval(interval);
+  }, []);
+
   useEffect(() => {
     (window as any).openMZAdmin = () => {
       navigate('admin');

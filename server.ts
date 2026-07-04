@@ -243,6 +243,58 @@ app.post("/api/admin/clear-waitlist", (req, res) => {
   res.json({ success: true, message: "Local database cleared" });
 });
 
+// --- UNIVERSAL SETTINGS PERSISTENCE SYSTEM ---
+const SETTINGS_FILE = path.join(process.cwd(), "settings-db.json");
+
+function getAdminSettings() {
+  const defaultSettings = {
+    customCount: 200,
+    countdownOverride: false,
+    forceLaunch: false,
+    customLaunchTime: ""
+  };
+  
+  if (fs.existsSync(SETTINGS_FILE)) {
+    try {
+      const fileData = fs.readFileSync(SETTINGS_FILE, "utf-8");
+      return { ...defaultSettings, ...JSON.parse(fileData) };
+    } catch (err) {
+      console.error("Error reading settings file", err);
+    }
+  }
+  return defaultSettings;
+}
+
+function writeAdminSettings(settings: any) {
+  try {
+    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+    return true;
+  } catch (err) {
+    console.error("Error writing settings file", err);
+    return false;
+  }
+}
+
+// 3.1 Get universal settings (public)
+app.get("/api/settings", (req, res) => {
+  const settings = getAdminSettings();
+  res.json({ success: true, settings });
+});
+
+// 3.2 Update universal settings (admin-only)
+app.post("/api/admin/settings", (req, res) => {
+  const current = getAdminSettings();
+  const updated = {
+    customCount: req.body.customCount !== undefined ? Number(req.body.customCount) : current.customCount,
+    countdownOverride: req.body.countdownOverride !== undefined ? Boolean(req.body.countdownOverride) : current.countdownOverride,
+    forceLaunch: req.body.forceLaunch !== undefined ? Boolean(req.body.forceLaunch) : current.forceLaunch,
+    customLaunchTime: req.body.customLaunchTime !== undefined ? String(req.body.customLaunchTime) : current.customLaunchTime
+  };
+  
+  const success = writeAdminSettings(updated);
+  res.json({ success, settings: updated });
+});
+
 // --- CHARIOW API INTEGRATION ROUTES ---
 
 const CHARIOW_CONFIG_FILE = path.join(process.cwd(), "chariow-config.json");

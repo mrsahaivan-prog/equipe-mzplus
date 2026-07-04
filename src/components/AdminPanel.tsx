@@ -67,8 +67,57 @@ export default function AdminPanel({ onClose, onRefreshData }: AdminPanelProps) 
     if (isAuthenticated) {
       fetchRawEntries();
       fetchChariowConfig();
+      fetchUniversalSettings();
     }
   }, [isAuthenticated]);
+
+  const fetchUniversalSettings = async () => {
+    try {
+      const res = await fetch('/api/settings');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.settings) {
+          const s = data.settings;
+          setCustomCount(s.customCount.toString());
+          setCountdownOverride(s.countdownOverride);
+          setForceLaunch(s.forceLaunch);
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching universal settings in admin:", err);
+    }
+  };
+
+  const updateUniversalSettings = async (updates: {
+    customCount?: number;
+    countdownOverride?: boolean;
+    forceLaunch?: boolean;
+    customLaunchTime?: string;
+  }) => {
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.settings) {
+          const s = data.settings;
+          localStorage.setItem('mz_custom_simulated_count', s.customCount.toString());
+          localStorage.setItem('mz_admin_override_countdown', s.countdownOverride ? 'true' : 'false');
+          localStorage.setItem('mz_admin_force_launch', s.forceLaunch ? 'true' : 'false');
+          localStorage.setItem('mz_custom_launch_time', s.customLaunchTime || '');
+          
+          setCustomCount(s.customCount.toString());
+          setCountdownOverride(s.countdownOverride);
+          setForceLaunch(s.forceLaunch);
+        }
+      }
+    } catch (err) {
+      console.error("Error updating universal settings:", err);
+    }
+  };
 
   const fetchChariowConfig = async () => {
     try {
@@ -209,7 +258,7 @@ export default function AdminPanel({ onClose, onRefreshData }: AdminPanelProps) 
     localStorage.removeItem('mz_admin_auth_v3');
   };
 
-  const saveCounterPilot = () => {
+  const saveCounterPilot = async () => {
     const val = parseInt(customCount, 10);
     if (isNaN(val) || val < 0) {
       alert("Veuillez entrer un nombre valide.");
@@ -220,39 +269,38 @@ export default function AdminPanel({ onClose, onRefreshData }: AdminPanelProps) 
     localStorage.setItem('mz_waitlist_total_count_v3', val.toString());
     localStorage.setItem('mz_permanent_counter_v3', val.toString());
     
+    await updateUniversalSettings({ customCount: val });
     showFeedback("Compteur mis à jour avec succès !");
     if (onRefreshData) onRefreshData();
   };
 
-  const toggleCountdownOverride = (forced: boolean) => {
+  const toggleCountdownOverride = async (forced: boolean) => {
     setCountdownOverride(forced);
     if (forced) {
-      localStorage.setItem('mz_admin_override_countdown', 'true');
-      showFeedback("Compte à rebours forcé à zéro.");
+      await updateUniversalSettings({ countdownOverride: true });
+      showFeedback("Compte à rebours universel forcé à zéro.");
     } else {
-      localStorage.removeItem('mz_admin_override_countdown');
-      localStorage.removeItem('mz_custom_launch_time');
-      showFeedback("Compte à rebours réinitialisé au 4 Juillet.");
+      await updateUniversalSettings({ countdownOverride: false, customLaunchTime: "" });
+      showFeedback("Compte à rebours universel réinitialisé au 4 Juillet.");
     }
     if (onRefreshData) onRefreshData();
   };
 
-  const toggleForceLaunchMode = (forced: boolean) => {
+  const toggleForceLaunchMode = async (forced: boolean) => {
     setForceLaunch(forced);
     if (forced) {
-      localStorage.setItem('mz_admin_force_launch', 'true');
-      showFeedback("Mode lancement activé de force !");
+      await updateUniversalSettings({ forceLaunch: true });
+      showFeedback("Mode lancement universel activé de force !");
     } else {
-      localStorage.removeItem('mz_admin_force_launch');
-      showFeedback("Mode lancement désactivé (chrono standard).");
+      await updateUniversalSettings({ forceLaunch: false });
+      showFeedback("Mode lancement universel désactivé (chrono standard).");
     }
     if (onRefreshData) onRefreshData();
   };
 
-  const setTestCountdown = (seconds: number) => {
+  const setTestCountdown = async (seconds: number) => {
     const targetTimestamp = Date.now() + (seconds * 1000);
-    localStorage.setItem('mz_custom_launch_time', targetTimestamp.toString());
-    localStorage.removeItem('mz_admin_override_countdown');
+    await updateUniversalSettings({ customLaunchTime: targetTimestamp.toString(), countdownOverride: false });
     setCountdownOverride(false);
     showFeedback(`Test lancé : fin dans ${seconds} secondes.`);
     if (onRefreshData) onRefreshData();
