@@ -10,7 +10,7 @@ export function isLaunchModeActive(): boolean {
   if (typeof window === 'undefined') return false;
   
   // 0. Emergency urgent route bypasses pre-launch phase instantly!
-  if (window.location.pathname === '/accesurgence-mz+') {
+  if (window.location.pathname.includes('accesurgence-mz+')) {
     return true;
   }
   

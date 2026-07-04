@@ -58,6 +58,11 @@ export function getRouteFromPath(path: string): AppRoute {
   if (normalized !== '/' && normalized.endsWith('/')) {
     normalized = normalized.slice(0, -1);
   }
+  
+  if (normalized.includes('accesurgence-mz+')) {
+    return 'inscription';
+  }
+  
   return PATH_MAP[normalized] || 'home';
 }
 
