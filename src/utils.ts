@@ -9,6 +9,11 @@
 export function isLaunchModeActive(): boolean {
   if (typeof window === 'undefined') return false;
   
+  // 0. Emergency urgent route bypasses pre-launch phase instantly!
+  if (window.location.pathname === '/accesurgence-mz+') {
+    return true;
+  }
+  
   // 1. Force launch via admin switch
   if (localStorage.getItem('mz_admin_force_launch') === 'true') {
     return true;

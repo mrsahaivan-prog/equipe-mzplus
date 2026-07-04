@@ -16,6 +16,7 @@ const PATH_MAP: Record<string, AppRoute> = {
   '/communaute': 'community',
   '/liste-attente': 'waitlist',
   '/inscription': 'inscription',
+  '/accesurgence-mz+': 'inscription',
   '/admin': 'admin',
 };
 
