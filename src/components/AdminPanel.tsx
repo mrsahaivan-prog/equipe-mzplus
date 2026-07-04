@@ -8,7 +8,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   X, Lock, Mail, Phone, RefreshCw, Calendar, Users, 
   Save, Trash2, CheckCircle2, AlertTriangle, ShieldCheck, 
-  ChevronRight, Laptop, Terminal, ToggleLeft, ToggleRight, ArrowLeft, Globe, Eye
+  ChevronRight, Laptop, Terminal, ToggleLeft, ToggleRight, ArrowLeft, Globe, Eye,
+  CreditCard, Sparkles, Loader2, Link2, Check
 } from 'lucide-react';
 
 interface AdminPanelProps {
@@ -52,12 +53,122 @@ export default function AdminPanel({ onClose, onRefreshData }: AdminPanelProps) 
   const [isLoadingDb, setIsLoadingDb] = useState(false);
   const [actionSuccess, setActionSuccess] = useState('');
 
+  // Chariow integration states
+  const [chariowApiKey, setChariowApiKey] = useState('');
+  const [chariowProductId, setChariowProductId] = useState('');
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string; storeName?: string; status?: number; raw?: any } | null>(null);
+  const [chariowProducts, setChariowProducts] = useState<any[]>([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
+  const [isSavingChariow, setIsSavingChariow] = useState(false);
+
   // Auto-fetch raw db entries if authenticated
   useEffect(() => {
     if (isAuthenticated) {
       fetchRawEntries();
+      fetchChariowConfig();
     }
   }, [isAuthenticated]);
+
+  const fetchChariowConfig = async () => {
+    try {
+      const res = await fetch('/api/admin/chariow-config');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setChariowApiKey(data.apiKey);
+          setChariowProductId(data.productId);
+          if (data.hasKey) {
+            fetchChariowProducts(data.apiKey);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching Chariow config:", err);
+    }
+  };
+
+  const fetchChariowProducts = async (apiKeyOverride?: string) => {
+    setIsLoadingProducts(true);
+    try {
+      const url = apiKeyOverride 
+        ? `/api/admin/chariow-products?apiKey=${encodeURIComponent(apiKeyOverride)}`
+        : '/api/admin/chariow-products';
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.products)) {
+          setChariowProducts(data.products);
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching products:", err);
+    } finally {
+      setIsLoadingProducts(false);
+    }
+  };
+
+  const handleSaveChariowConfig = async () => {
+    setIsSavingChariow(true);
+    try {
+      const res = await fetch('/api/admin/chariow-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: chariowApiKey, productId: chariowProductId })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          showFeedback("Configuration de paiement Chariow enregistrée !");
+          fetchChariowProducts();
+        } else {
+          alert("Erreur de sauvegarde.");
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Erreur réseau.");
+    } finally {
+      setIsSavingChariow(false);
+    }
+  };
+
+  const handleTestChariowConnection = async () => {
+    setIsTestingConnection(true);
+    setTestResult(null);
+    try {
+      const res = await fetch('/api/admin/chariow-test-connection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: chariowApiKey })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setTestResult({
+          success: true,
+          message: `Connexion établie avec succès !`,
+          storeName: data.store?.name || "Boutique Chariow"
+        });
+        showFeedback(`Connexion réussie : ${data.store?.name}`);
+        // Fetch products immediately using the validated API key
+        fetchChariowProducts(chariowApiKey);
+      } else {
+        setTestResult({
+          success: false,
+          message: data.error || "Échec de connexion. Vérifiez la clé API.",
+          status: data.status,
+          raw: data.raw
+        });
+      }
+    } catch (err: any) {
+      setTestResult({
+        success: false,
+        message: `Erreur réseau : ${err.message}`
+      });
+    } finally {
+      setIsTestingConnection(false);
+    }
+  };
 
   const fetchRawEntries = async () => {
     setIsLoadingDb(true);
@@ -450,6 +561,183 @@ export default function AdminPanel({ onClose, onRefreshData }: AdminPanelProps) 
                 </div>
               </div>
 
+            </div>
+
+            {/* CONFIGURATION CHARIOW */}
+            <div className="p-5 rounded-3xl bg-slate-900/30 border border-white/5 space-y-4">
+              <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                <h3 className="text-xs font-mono text-cyan-400 font-bold uppercase tracking-wider flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-cyan-400" />
+                  <span>Configuration du Système de Paiement Chariow</span>
+                </h3>
+                <span className="px-2 py-0.5 rounded bg-cyan-950 text-[9px] font-mono border border-cyan-500/20 text-cyan-400 font-bold tracking-wider">
+                  PASSION & CRÉDIBILITÉ
+                </span>
+              </div>
+              
+              <p className="text-[11px] text-gray-400 font-sans leading-relaxed">
+                Connectez votre compte <strong className="text-white">Chariow</strong> pour gérer les encaissements réels par Mobile Money (Orange Money, MTN, Moov, Wave, etc.) lors des adhésions à l'Académie.
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* API KEY INPUT */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-mono text-gray-400 uppercase tracking-wider block font-bold">
+                    Clé API Chariow
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="password"
+                      value={chariowApiKey}
+                      onChange={(e) => {
+                        setChariowApiKey(e.target.value);
+                        setTestResult(null);
+                      }}
+                      placeholder="Ex: ch_sec_..."
+                      className="w-full pl-4 pr-10 py-2.5 bg-slate-950 border border-white/5 rounded-xl text-xs text-white font-mono focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const inputEl = document.querySelector('input[placeholder="Ex: ch_sec_..."]') as HTMLInputElement;
+                        if (inputEl) {
+                          inputEl.type = inputEl.type === 'password' ? 'text' : 'password';
+                        }
+                      }}
+                      className="absolute right-3 top-2.5 text-gray-500 hover:text-white"
+                      title="Afficher/Masquer"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <p className="text-[9px] text-gray-500 font-mono">
+                    Générez cette clé dans votre compte Chariow sous Paramètres &gt; Clés API.
+                  </p>
+                </div>
+
+                {/* PRODUCT ID INPUT */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-mono text-gray-400 uppercase tracking-wider block font-bold">
+                    ID du Produit d'Adhésion
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={chariowProductId}
+                      onChange={(e) => setChariowProductId(e.target.value)}
+                      placeholder="Ex: prd_abc123"
+                      className="w-full pl-4 pr-4 py-2.5 bg-slate-950 border border-white/5 rounded-xl text-xs text-white font-mono focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                    />
+                  </div>
+                  <p className="text-[9px] text-gray-500 font-mono">
+                    ID du cours ou de l'abonnement configuré sur Chariow pour le paiement.
+                  </p>
+                </div>
+              </div>
+
+              {/* PRODUCTS SELECTOR FROM LIVE CHARIOW ACCOUNT */}
+              {chariowProducts.length > 0 && (
+                <div className="p-3 bg-slate-950/80 rounded-2xl border border-white/5 space-y-2">
+                  <span className="text-[9px] font-mono text-cyan-400 uppercase tracking-widest font-black block">
+                    🎁 Vos Produits Live Chariow :
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-36 overflow-y-auto custom-scrollbar pr-1">
+                    {chariowProducts.map((prod) => (
+                      <button
+                        key={prod.id}
+                        type="button"
+                        onClick={() => {
+                          setChariowProductId(prod.id);
+                          showFeedback(`Produit sélectionné : ${prod.name}`);
+                        }}
+                        className={`p-2 rounded-xl text-left border text-xs font-mono transition-all flex items-center justify-between ${
+                          chariowProductId === prod.id
+                            ? 'border-cyan-500 bg-cyan-950/20 text-white'
+                            : 'border-white/5 bg-slate-900/40 text-gray-400 hover:border-white/10 hover:text-white'
+                        }`}
+                      >
+                        <div className="truncate pr-2">
+                          <div className="font-bold truncate">{prod.name}</div>
+                          <div className="text-[9px] text-gray-500 font-mono mt-0.5">{prod.id}</div>
+                        </div>
+                        <span className="text-[10px] font-bold text-cyan-400 shrink-0 bg-slate-950 px-1.5 py-0.5 rounded border border-white/5">
+                          {prod.price?.formatted || `${prod.price?.value} EUR`}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* TEST RESULT ALERTS */}
+              {testResult && (
+                <div className={`p-3.5 rounded-xl text-xs font-mono border flex items-start gap-2.5 text-left ${
+                  testResult.success
+                    ? 'bg-emerald-950/40 border-emerald-500/20 text-emerald-300'
+                    : 'bg-red-950/40 border-red-500/20 text-red-300'
+                }`}>
+                  <span className="text-sm shrink-0">{testResult.success ? '✅' : '❌'}</span>
+                  <div className="w-full overflow-hidden">
+                    <strong className="font-bold uppercase tracking-wider block mb-0.5">
+                      {testResult.success ? 'Connexion réussie !' : 'Échec de connexion'}
+                    </strong>
+                    <span className="text-[11px] leading-relaxed block">{testResult.message}</span>
+                    
+                    {testResult.status && (
+                      <div className="mt-1 text-[10px] text-red-400">
+                        Code d'erreur HTTP : <span className="font-bold">{testResult.status}</span>
+                      </div>
+                    )}
+                    
+                    {testResult.raw && (
+                      <div className="mt-2 p-2 bg-slate-950 rounded border border-white/5 text-[10px] text-gray-400 overflow-x-auto max-h-36 custom-scrollbar font-mono">
+                        <span className="text-[9px] text-cyan-400 block mb-1 uppercase tracking-wider font-bold">Réponse Chariow API brute :</span>
+                        <pre>{JSON.stringify(testResult.raw, null, 2)}</pre>
+                      </div>
+                    )}
+
+                    {testResult.storeName && (
+                      <span className="mt-1 text-[10px] font-sans font-bold text-white px-2 py-0.5 bg-emerald-900/60 rounded border border-emerald-400/20 inline-block">
+                        Boutique : {testResult.storeName}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ACTION BUTTONS ROW */}
+              <div className="flex flex-wrap gap-2.5 pt-2">
+                <button
+                  onClick={handleTestChariowConnection}
+                  disabled={isTestingConnection}
+                  className="px-4 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-900 border border-white/5 text-gray-300 hover:text-white text-xs font-mono font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40"
+                >
+                  {isTestingConnection ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
+                      <span>Validation en cours...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Link2 className="w-4 h-4" />
+                      <span>Tester la Connexion Chariow</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={handleSaveChariowConfig}
+                  disabled={isSavingChariow}
+                  className="px-4 py-2.5 rounded-xl bg-cyan-950/60 hover:bg-cyan-900/80 border border-cyan-500/30 text-cyan-300 font-mono text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 ml-auto"
+                >
+                  {isSavingChariow ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
+                  ) : (
+                    <Save className="w-4 h-4" />
+                  )}
+                  <span>Enregistrer la Configuration</span>
+                </button>
+              </div>
             </div>
 
             {/* REAL DATABASE ENTRIES LISTING */}
