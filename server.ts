@@ -275,14 +275,87 @@ function writeAdminSettings(settings: any) {
   }
 }
 
+// Helper to get Supabase settings connection info
+function getSupabaseSettingsConfig() {
+  const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+  const anonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+  
+  if (!url || !anonKey) {
+    return null;
+  }
+  
+  let cleanUrl = url.trim();
+  if (cleanUrl.endsWith('/')) {
+    cleanUrl = cleanUrl.slice(0, -1);
+  }
+  
+  const endpoint = cleanUrl.includes('/rest/v1')
+    ? `${cleanUrl}/universal_settings`
+    : `${cleanUrl}/rest/v1/universal_settings`;
+    
+  return { endpoint, anonKey };
+}
+
 // 3.1 Get universal settings (public)
-app.get("/api/settings", (req, res) => {
-  const settings = getAdminSettings();
-  res.json({ success: true, settings });
+app.get("/api/settings", async (req, res) => {
+  const localSettings = getAdminSettings();
+  const supabase = getSupabaseSettingsConfig();
+  
+  if (!supabase) {
+    return res.json({ success: true, settings: localSettings });
+  }
+  
+  try {
+    const response = await fetch(`${supabase.endpoint}?id=eq.default`, {
+      method: "GET",
+      headers: {
+        "apikey": supabase.anonKey,
+        "Authorization": `Bearer ${supabase.anonKey}`,
+        "Accept": "application/json"
+      }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (Array.isArray(data) && data.length > 0) {
+        const dbRow = data[0];
+        const settings = {
+          customCount: dbRow.custom_count !== undefined ? Number(dbRow.custom_count) : localSettings.customCount,
+          countdownOverride: dbRow.countdown_override !== undefined ? Boolean(dbRow.countdown_override) : localSettings.countdownOverride,
+          forceLaunch: dbRow.force_launch !== undefined ? Boolean(dbRow.force_launch) : localSettings.forceLaunch,
+          customLaunchTime: dbRow.custom_launch_time !== undefined ? String(dbRow.custom_launch_time) : localSettings.customLaunchTime
+        };
+        writeAdminSettings(settings);
+        return res.json({ success: true, settings });
+      } else {
+        console.log("No settings row found in Supabase. Creating default row...");
+        await fetch(supabase.endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": supabase.anonKey,
+            "Authorization": `Bearer ${supabase.anonKey}`,
+            "Prefer": "return=minimal"
+          },
+          body: JSON.stringify({
+            id: "default",
+            custom_count: localSettings.customCount,
+            countdown_override: localSettings.countdownOverride,
+            force_launch: localSettings.forceLaunch,
+            custom_launch_time: localSettings.customLaunchTime
+          })
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Error reading settings from Supabase, using local fallback:", err);
+  }
+  
+  res.json({ success: true, settings: localSettings });
 });
 
 // 3.2 Update universal settings (admin-only)
-app.post("/api/admin/settings", (req, res) => {
+app.post("/api/admin/settings", async (req, res) => {
   const current = getAdminSettings();
   const updated = {
     customCount: req.body.customCount !== undefined ? Number(req.body.customCount) : current.customCount,
@@ -292,6 +365,51 @@ app.post("/api/admin/settings", (req, res) => {
   };
   
   const success = writeAdminSettings(updated);
+  
+  const supabase = getSupabaseSettingsConfig();
+  if (supabase) {
+    try {
+      console.log("Updating settings on Supabase...");
+      const patchResp = await fetch(`${supabase.endpoint}?id=eq.default`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": supabase.anonKey,
+          "Authorization": `Bearer ${supabase.anonKey}`,
+          "Prefer": "return=minimal"
+        },
+        body: JSON.stringify({
+          custom_count: updated.customCount,
+          countdown_override: updated.countdownOverride,
+          force_launch: updated.forceLaunch,
+          custom_launch_time: updated.customLaunchTime
+        })
+      });
+      
+      if (!patchResp.ok) {
+        console.warn("PATCH settings failed, trying UPSERT/POST...");
+        await fetch(supabase.endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": supabase.anonKey,
+            "Authorization": `Bearer ${supabase.anonKey}`,
+            "Prefer": "resolution=merge-duplicates"
+          },
+          body: JSON.stringify({
+            id: "default",
+            custom_count: updated.customCount,
+            countdown_override: updated.countdownOverride,
+            force_launch: updated.forceLaunch,
+            custom_launch_time: updated.customLaunchTime
+          })
+        });
+      }
+    } catch (err) {
+      console.error("Failed to update settings in Supabase:", err);
+    }
+  }
+  
   res.json({ success, settings: updated });
 });
 

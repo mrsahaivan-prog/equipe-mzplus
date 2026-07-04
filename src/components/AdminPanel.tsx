@@ -492,14 +492,14 @@ export default function AdminPanel({ onClose, onRefreshData }: AdminPanelProps) 
             {/* BENTO-GRID SYSTEM ACTIONS */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               
-              {/* COMPTEUR & SIMULATION BOX */}
+              {/* COMPTEUR & PLACES RESTANTES */}
               <div className="p-5 rounded-3xl bg-slate-900/30 border border-white/5 space-y-4">
-                <h3 className="text-xs font-mono text-red-400 font-bold uppercase tracking-wider flex items-center gap-2">
+                <h3 className="text-xs font-mono text-cyan-400 font-bold uppercase tracking-wider flex items-center gap-2">
                   <Users className="w-4 h-4" />
-                  <span>Contrôle d'Afflux d'Inscriptions</span>
+                  <span>Places Restantes & Compteur Global</span>
                 </h3>
                 <p className="text-[11px] text-gray-400 font-sans leading-relaxed">
-                  Modifiez la valeur de départ simulée pour le compteur global d'inscriptions sur l'application. Cette valeur sert de socle pour crédibiliser le trafic.
+                  Modifiez le nombre de places restantes affiché en haut du formulaire de paiement. Cette valeur est synchronisée en temps réel via la table SQL Supabase et s'applique de manière unanime à tous les visiteurs connectés.
                 </p>
 
                 <div className="space-y-3">
@@ -508,16 +508,16 @@ export default function AdminPanel({ onClose, onRefreshData }: AdminPanelProps) 
                       type="number"
                       value={customCount}
                       onChange={(e) => setCustomCount(e.target.value)}
-                      placeholder="Ex: 1540"
-                      className="w-full pl-4 pr-4 py-2.5 bg-slate-950 border border-white/5 rounded-xl text-sm text-white font-mono focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                      placeholder="Ex: 3"
+                      className="w-full pl-4 pr-4 py-2.5 bg-slate-950 border border-white/5 rounded-xl text-sm text-white font-mono focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
                     />
                   </div>
                   <button
                     onClick={saveCounterPilot}
-                    className="w-full py-2.5 rounded-xl bg-red-950 hover:bg-red-900 border border-red-500/40 text-red-300 font-mono text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="w-full py-2.5 rounded-xl bg-cyan-950 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-300 font-mono text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <Save className="w-4 h-4" />
-                    <span>Enregistrer la valeur du compteur</span>
+                    <span>Mettre à jour les places restantes</span>
                   </button>
                 </div>
               </div>

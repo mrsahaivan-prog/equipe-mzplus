@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   Mail, Phone, User, CheckCircle2, ArrowRight, ArrowLeft, ShieldCheck, 
   Sparkles, Lock, ChevronDown, Check, Star, ShieldAlert, CreditCard,
-  Smartphone, Loader2, ArrowUpRight, HelpCircle
+  Smartphone, Loader2, ArrowUpRight, HelpCircle, Hourglass
 } from 'lucide-react';
 
 import { COUNTRIES, Country } from '../countries';
@@ -297,8 +297,19 @@ export default function LaunchRegistration({
   onBackToHome
 }: LaunchRegistrationProps) {
   
-  // Registration steps flow: 'form' | 'preparing' | 'payment' | 'processing_payment' | 'success'
-  const [registrationStep, setRegistrationStep] = useState<'form' | 'preparing' | 'payment' | 'processing_payment' | 'success'>('form');
+  // Registration steps flow: 'form' | 'preparing' | 'payment' | 'processing_payment' | 'finalizing_redirect' | 'success'
+  const [registrationStep, setRegistrationStep] = useState<'form' | 'preparing' | 'payment' | 'processing_payment' | 'finalizing_redirect' | 'success'>('form');
+
+  // Transition timer for finalizing_redirect step
+  useEffect(() => {
+    if (registrationStep !== 'finalizing_redirect') return;
+    
+    const timer = setTimeout(() => {
+      setRegistrationStep('success');
+    }, 4000); // Elegant 4 seconds of spinning transition as requested
+    
+    return () => clearTimeout(timer);
+  }, [registrationStep]);
   
   // Step 1: Form Fields
   const [fullName, setFullName] = useState('');
@@ -324,6 +335,7 @@ export default function LaunchRegistration({
   const [mobileMoneyNumber, setMobileMoneyNumber] = useState('');
   const [selectedOperator, setSelectedOperator] = useState<string>('');
   const [paymentError, setPaymentError] = useState('');
+  const [placesRestantes, setPlacesRestantes] = useState<number>(3);
   
   // Step 3.5: Mobile Money Validation Simulation States
   const [countdownTimer, setCountdownTimer] = useState(45);
@@ -333,8 +345,53 @@ export default function LaunchRegistration({
   const [adminClicks, setAdminClicks] = useState(0);
   const [lastClickTime, setLastClickTime] = useState(0);
 
+  // Poll universal settings to synchronize places remaining with admin config
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch('/api/settings');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.settings) {
+            const count = Number(data.settings.customCount);
+            if (!isNaN(count)) {
+              setPlacesRestantes(count);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching settings for placesRestantes", err);
+      }
+    };
+    
+    fetchSettings();
+    const interval = setInterval(fetchSettings, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
   // Dynamic localization info based on chosen country
   const localization = getLocalPriceAndOperators(selectedCountry.name);
+
+  const getOriginalValueString = (countryName: string): string => {
+    const name = countryName.toLowerCase();
+    if (name.includes("côte") || name.includes("cote") || name.includes("sénégal") || name.includes("senegal") || name.includes("bénin") || name.includes("benin") || name.includes("burkina") || name.includes("mali") || name.includes("niger") || name.includes("togo") || name.includes("cameroun") || name.includes("congo-brazzaville") || name.includes("gabon") || name.includes("tchad") || name.includes("centrafrique") || name.includes("équatoriale") || name.includes("equatoriale")) {
+      return "149 000 FCFA";
+    }
+    if (name.includes("congo-kinshasa") || name.includes("rdc")) return "650 000 CDF";
+    if (name.includes("guinée") || name.includes("guinee")) return "2 100 000 GNF";
+    if (name.includes("madagascar")) return "1 100 000 MGA";
+    if (name.includes("maroc") || name.includes("morocco")) return "2 490 MAD";
+    if (name.includes("algérie") || name.includes("algerie") || name.includes("algeria")) return "33 000 DZD";
+    if (name.includes("tunisie") || name.includes("tunisia")) return "750 TND";
+    if (name.includes("mauritanie") || name.includes("mauritania")) return "9 800 MRU";
+    if (name.includes("burundi")) return "720 000 BIF";
+    if (name.includes("rwanda")) return "310 000 RWF";
+    if (name.includes("france") || name.includes("belgique") || name.includes("belgium") || name.includes("luxembourg") || name.includes("allemagne") || name.includes("monaco") || name.includes("suisse") || name.includes("switzerland") || name.includes("europe")) {
+      return "249,00 €";
+    }
+    if (name.includes("canada")) return "349,00 $ CAD";
+    return "249,00 $ USD";
+  };
 
   // Sync mobileMoneyNumber with the registered phone on initial load or step change
   useEffect(() => {
@@ -355,7 +412,7 @@ export default function LaunchRegistration({
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('chariow_success') === 'true' || params.get('success') === 'true') {
-      setRegistrationStep('success');
+      setRegistrationStep('finalizing_redirect');
     }
   }, []);
 
@@ -455,9 +512,9 @@ export default function LaunchRegistration({
     setIsRedirecting(false);
     setPreparingChecks([
       { label: 'Vérification de vos informations', status: 'loading' },
-      { label: 'Préparation de votre espace MZ+', status: 'pending' },
-      { label: 'Vérification des places disponibles', status: 'pending' },
-      { label: 'Presque terminé...', status: 'pending' }
+      { label: "Analyse des critères d'admissibilité", status: 'pending' },
+      { label: 'Vérification de la disponibilité des places', status: 'pending' },
+      { label: "Préparation de l'étape finale de paiement", status: 'pending' }
     ]);
 
     // Let the total duration be exactly 20 seconds (20,000 ms) as requested by the user
@@ -535,9 +592,9 @@ export default function LaunchRegistration({
       setPaymentError('Veuillez entrer votre numéro de téléphone Mobile Money.');
       return;
     }
-    if (!selectedOperator) {
-      setPaymentError('Veuillez sélectionner votre opérateur de paiement.');
-      return;
+    let operatorToUse = selectedOperator;
+    if (!operatorToUse && localization.operators && localization.operators.length > 0) {
+      operatorToUse = localization.operators[0].id;
     }
 
     setPaymentError('');
@@ -660,9 +717,9 @@ export default function LaunchRegistration({
       });
     }, 1000);
 
-    // Direct redirection to success screen after exactly 15 seconds
+    // Direct redirection to finalizing redirect screen after exactly 15 seconds
     const timeout = setTimeout(() => {
-      setRegistrationStep('success');
+      setRegistrationStep('finalizing_redirect');
     }, 15000);
 
     return () => {
@@ -810,10 +867,10 @@ export default function LaunchRegistration({
                               </span>
                               {isCurrent && (
                                 <span className="text-[9px] text-cyan-400/80 font-mono block mt-0.5 animate-pulse">
-                                  {idx === 0 && "Analyse cryptographique de vos données..."}
-                                  {idx === 1 && "Configuration du tableau de bord..."}
-                                  {idx === 2 && "Vérification des accès d'élite..."}
-                                  {idx === 3 && "Finalisation de la clé de licence..."}
+                                  {idx === 0 && "Analyse de sécurité de vos données..."}
+                                  {idx === 1 && "Évaluation du profil de candidature..."}
+                                  {idx === 2 && "Recherche de créneau disponible en temps réel..."}
+                                  {idx === 3 && "Génération de votre session de facturation locale..."}
                                 </span>
                               )}
                               {isDone && (
@@ -826,7 +883,7 @@ export default function LaunchRegistration({
 
                           <span className="text-[9px] font-mono shrink-0 ml-4 font-bold">
                             {isDone ? (
-                              <span className="text-emerald-400 font-bold">PRÊT</span>
+                              <span className="text-emerald-400 font-bold">VALIDÉ</span>
                             ) : isCurrent ? (
                               <span className="text-cyan-400 animate-pulse font-bold">EN COURS</span>
                             ) : (
@@ -846,7 +903,7 @@ export default function LaunchRegistration({
                 </div>
               </motion.div>
             ) : (
-              /* GLOWING TRIUMPHANT REDIRECT OVERLAY */
+              /* GLOWING HIGH-TENSION REDIRECT OVERLAY */
               <motion.div
                 key="redirect-panel"
                 initial={{ opacity: 0, scale: 0.95, y: 15 }}
@@ -854,31 +911,31 @@ export default function LaunchRegistration({
                 transition={{ duration: 0.4, type: 'spring' }}
                 className="w-full space-y-5"
               >
-                <div className="w-full bg-slate-900 border border-emerald-500/30 rounded-2xl p-6 sm:p-8 backdrop-blur-xl shadow-[0_20px_60px_rgba(16,185,129,0.15)] space-y-6 relative overflow-hidden">
-                  <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-emerald-400 to-transparent" />
-                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(16,185,129,0.05),transparent_70%)] pointer-events-none" />
+                <div className="w-full bg-slate-900 border border-amber-500/30 rounded-2xl p-6 sm:p-8 backdrop-blur-xl shadow-[0_20px_60px_rgba(245,158,11,0.15)] space-y-6 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-amber-400 to-transparent" />
+                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,0.05),transparent_70%)] pointer-events-none" />
                   
-                  {/* Glowing Check icon */}
-                  <div className="w-16 h-16 rounded-full bg-emerald-950/60 border border-emerald-500/40 flex items-center justify-center text-emerald-400 mx-auto shadow-[0_0_20px_rgba(16,185,129,0.3)] animate-pulse">
-                    <Check className="w-8 h-8 stroke-[3]" />
+                  {/* Glowing urgent hourglass icon */}
+                  <div className="w-16 h-16 rounded-full bg-amber-950/60 border border-amber-500/40 flex items-center justify-center text-amber-400 mx-auto shadow-[0_0_20px_rgba(245,158,11,0.3)]">
+                    <Hourglass className="w-7 h-7 animate-pulse text-amber-400" />
                   </div>
 
                   <div className="space-y-2">
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-emerald-950 border border-emerald-500/30 text-emerald-400 text-[9px] font-mono tracking-widest uppercase font-black">
-                      🎉 CONFIGURATION REUSSIE
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-amber-950 border border-amber-500/30 text-amber-400 text-[9px] font-mono tracking-widest uppercase font-black">
+                      ⚠️ PLACE RESERVÉE TEMPORAIREMENT (15 MIN)
                     </span>
                     <h2 className="text-xl font-black text-white uppercase tracking-tight">
-                      Votre Espace est Prêt !
+                      Finalisation de votre inscription
                     </h2>
-                    <p className="text-xs text-gray-400 leading-relaxed font-light max-w-sm mx-auto">
-                      Votre identifiant unique de licence a été généré et sécurisé. Redirection immédiate vers la page de paiement sécurisé de votre pays...
+                    <p className="text-xs text-gray-300 leading-relaxed font-light max-w-sm mx-auto">
+                      Votre dossier de candidature est pré-approuvé. Votre place d'admission d'élite est bloquée pour une durée de <strong className="text-amber-400 font-bold">15 minutes uniquement</strong>. Vous devez valider l'étape de règlement suivante pour sécuriser vos accès.
                     </p>
                   </div>
 
                   {/* Circular scanning spinner */}
                   <div className="flex items-center justify-center gap-2 text-[10px] font-mono text-cyan-400 animate-pulse">
                     <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
-                    <span>Établissement du tunnel de transaction local...</span>
+                    <span>Chargement de la session de paiement sécurisée...</span>
                   </div>
                 </div>
 
@@ -975,7 +1032,7 @@ export default function LaunchRegistration({
       </div>
 
       {/* MAIN CONTAINER */}
-      <main className="max-w-xl w-full mx-auto relative z-10 my-auto flex flex-col justify-center">
+      <main className="max-w-xl w-full mx-auto relative z-10 my-auto flex flex-col justify-center transition-all duration-300">
         <AnimatePresence mode="wait">
           
           {/* STEP 1: FORM VIEW */}
@@ -1188,140 +1245,115 @@ export default function LaunchRegistration({
           )}
 
 
-          {/* STEP 3: PAYMENT VIEW (LOCALIZED MOBILE MONEY PLATFORM) */}
+          {/* STEP 3: PAYMENT VIEW (RADICALLY SIMPLIFIED AS REQUESTED) */}
           {registrationStep === 'payment' && (
             <motion.div
               key="payment-step"
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -15 }}
-              className="space-y-6"
+              className="space-y-6 w-full text-center max-w-md mx-auto"
             >
-              <div className="text-center space-y-3">
-                <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-950/40 border border-emerald-500/30 text-emerald-400 text-xs font-mono tracking-wider font-extrabold uppercase">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                  <span>💳 Étape 3 : Paiement Sécurisé Chariow</span>
-                </div>
-                <h1 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">
-                  Finalisation de votre Admission
-                </h1>
+              {/* 1. TITLE */}
+              <div className="space-y-2">
+                <h2 className="text-2xl sm:text-3xl font-black text-white uppercase tracking-tight leading-tight">
+                  🚀 Vous êtes à une étape de rejoindre MZ+
+                </h2>
                 <p className="text-xs sm:text-sm text-gray-300 font-light max-w-sm mx-auto leading-relaxed">
-                  Vous êtes à un pas d'activer votre espace membre MZ+. Réglez vos frais d'accès sécurisés ci-dessous.
+                  Finalisez votre paiement pour débloquer votre accès à MZ+ et commencer votre parcours.
                 </p>
               </div>
 
-              {/* LOCALIZED PAYMENT CARD VISUAL */}
-              <div className="bg-slate-900/60 border border-white/5 rounded-3xl p-6 sm:p-8 backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] space-y-6">
+              {/* 2. REMAINING SEATS SECTOR */}
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 font-sans font-semibold text-xs sm:text-sm animate-pulse">
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0" />
+                <span>{placesRestantes} places restantes</span>
+              </div>
+
+              {/* 3. THE PRICE BOX */}
+              <div className="bg-slate-900/40 border border-white/5 rounded-3xl p-6 space-y-1">
+                <span className="text-[10px] font-mono text-gray-500 uppercase tracking-widest block font-bold">PRIX D'ADHÉSION</span>
+                <strong className="text-4xl sm:text-5xl font-mono font-black text-cyan-400 tracking-tight block">
+                  {localization.amountString}
+                </strong>
+              </div>
+
+              {/* 4. THE PHONE FIELD & CTAs ONLY */}
+              <div className="bg-slate-900 border border-white/5 rounded-3xl p-6 backdrop-blur-xl shadow-2xl space-y-5 text-left">
                 
-                {/* PRICE BOX LOCALIZED IN USER CURRENCY */}
-                <div className="p-5 rounded-2xl bg-gradient-to-br from-cyan-950/40 to-slate-950 border border-cyan-500/20 flex items-center justify-between text-left shadow-inner relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-16 h-16 bg-cyan-400/5 rounded-full blur-xl" />
-                  <div className="space-y-0.5">
-                    <span className="text-[9px] font-mono text-cyan-400 uppercase tracking-widest block font-extrabold">Option d'Accès d'Élite</span>
-                    <strong className="text-xs sm:text-sm text-white">Adhésion Club Privé MZ+ & Licence à vie</strong>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-[8px] font-mono text-gray-400 block uppercase font-bold">MONTANT LOCAL</span>
-                    <strong className="text-xl sm:text-2xl font-mono font-black text-cyan-400 animate-pulse">
-                      {localization.amountString}
-                    </strong>
-                  </div>
-                </div>
-
-                <div className="space-y-5 text-left">
+                {/* UNIFIED PHONE NUMBER INPUT WITH INTEGRATED COUNTRY SELECTOR */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-mono text-gray-400 uppercase tracking-wider block font-bold">
+                    Numéro de téléphone
+                  </label>
                   
-                  {/* TRUST-CERTIFIED PASSERELLE DESCRIPTION (NO RAW ORANGE MONEY BUTTONS) */}
-                  <div className="p-4 bg-slate-950 rounded-2xl border border-white/5 space-y-2.5 shadow-inner">
-                    <div className="flex items-center gap-1.5 pb-1.5 border-b border-white/[0.04]">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                      <span className="text-[9px] font-mono text-emerald-400 uppercase tracking-widest font-black">
-                        PASSERELLE DE PAIEMENT CERTIFIÉE CHARIOW
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-gray-400 font-light leading-relaxed">
-                      Notre passerelle officielle prend en charge de façon sécurisée les <strong className="text-white">Portefeuilles Mobiles nationaux</strong> (Wave, Orange Money, MTN MoMo, Moov, Airtel, Bankily, etc.) ainsi que les <strong className="text-white">Cartes Bancaires</strong> internationales selon votre pays.
-                    </p>
-                  </div>
-
-                  {/* MOBILE MONEY PHONE NUMBER INPUT WITH INTERACTIVE COUNTRY SELECTOR STYLE */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[10px] font-mono text-gray-400 uppercase tracking-wider block font-bold">
-                        Téléphone de Facturation ({selectedCountry.name})
-                      </label>
-                      <span className="text-[9px] font-mono text-gray-500 uppercase">Indicatif modifiable</span>
-                    </div>
+                  <div className="relative flex items-center bg-slate-950 border border-white/5 rounded-xl focus-within:border-cyan-500 focus-within:ring-1 focus-within:ring-cyan-500 transition-all">
                     
-                    <div className="flex gap-2">
-                      {/* Country Flag Selector on Step 3 as requested */}
-                      <div className="relative shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => setShowPaymentCountryDropdown(!showPaymentCountryDropdown)}
-                          className="flex items-center gap-1.5 px-3 py-3 bg-slate-950 border border-white/5 rounded-xl text-sm font-mono text-white focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all cursor-pointer hover:border-white/10"
-                        >
-                          <span className="text-base leading-none select-none">{selectedCountry.flag}</span>
-                          <span className="text-xs font-bold text-gray-300">{selectedCountry.code}</span>
-                          <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
-                        </button>
+                    {/* Integrated Country Selector inside the field */}
+                    <div className="relative shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setShowPaymentCountryDropdown(!showPaymentCountryDropdown)}
+                        className="flex items-center gap-1 px-3.5 py-3.5 border-r border-white/5 text-xs font-sans text-white hover:bg-white/[0.02] active:bg-white/[0.04] rounded-l-xl transition-all cursor-pointer h-full"
+                      >
+                        <span className="text-base leading-none select-none">{selectedCountry.flag}</span>
+                        <span className="text-xs font-mono font-bold text-gray-300 ml-1">{selectedCountry.code}</span>
+                        <ChevronDown className="w-3 h-3 text-gray-500 shrink-0 ml-1" />
+                      </button>
 
-                        <AnimatePresence>
-                          {showPaymentCountryDropdown && (
-                            <>
-                              <div 
-                                className="fixed inset-0 z-[100]" 
-                                onClick={() => setShowPaymentCountryDropdown(false)} 
-                              />
-                              <motion.div
-                                initial={{ opacity: 0, y: 5 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: 5 }}
-                                className="absolute left-0 mt-1.5 w-60 max-h-60 overflow-y-auto bg-slate-950 border border-white/10 rounded-xl shadow-2xl z-[101] divide-y divide-white/[0.03]"
-                              >
-                                {COUNTRIES.map((c, i) => (
-                                  <button
-                                    key={i}
-                                    type="button"
-                                    onClick={() => {
-                                      setSelectedCountry(c);
-                                      setShowPaymentCountryDropdown(false);
-                                      if (paymentError) setPaymentError('');
-                                    }}
-                                    className="w-full px-3.5 py-2.5 text-left hover:bg-slate-900 flex items-center justify-between text-xs font-mono text-gray-300 hover:text-white transition-colors cursor-pointer"
-                                  >
-                                    <div className="flex items-center gap-2 truncate">
-                                      <span className="text-base leading-none">{c.flag}</span>
-                                      <span className="truncate">{c.name}</span>
-                                    </div>
-                                    <span className="text-cyan-400 font-bold ml-2">{c.code}</span>
-                                  </button>
-                                ))}
-                              </motion.div>
-                            </>
-                          )}
-                        </AnimatePresence>
-                      </div>
-
-                      {/* Phone Input */}
-                      <div className="relative flex-1">
-                        <input
-                          type="text"
-                          required
-                          value={mobileMoneyNumber}
-                          onChange={(e) => {
-                            setMobileMoneyNumber(e.target.value);
-                            if (paymentError) setPaymentError('');
-                          }}
-                          placeholder="Ex: 07 12 34 56"
-                          className="w-full pl-11 pr-4 py-3 bg-slate-950 border border-white/5 rounded-xl text-sm text-white placeholder-gray-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all font-mono"
-                        />
-                        <Smartphone className="absolute left-4 top-3.5 w-4.5 h-4.5 text-gray-500" />
-                      </div>
+                      <AnimatePresence>
+                        {showPaymentCountryDropdown && (
+                          <>
+                            <div 
+                              className="fixed inset-0 z-[100]" 
+                              onClick={() => setShowPaymentCountryDropdown(false)} 
+                            />
+                            <motion.div
+                              initial={{ opacity: 0, y: 5 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: 5 }}
+                              className="absolute left-0 mt-2 w-60 max-h-56 overflow-y-auto bg-slate-950 border border-white/10 rounded-xl shadow-2xl z-[101] divide-y divide-white/[0.03]"
+                            >
+                              {COUNTRIES.map((c, i) => (
+                                <button
+                                  key={i}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedCountry(c);
+                                    setShowPaymentCountryDropdown(false);
+                                    if (paymentError) setPaymentError('');
+                                  }}
+                                  className="w-full px-3.5 py-2.5 text-left hover:bg-slate-900 flex items-center justify-between text-xs font-mono text-gray-300 hover:text-white transition-colors cursor-pointer"
+                                >
+                                  <div className="flex items-center gap-2 truncate">
+                                    <span className="text-base leading-none">{c.flag}</span>
+                                    <span className="truncate">{c.name}</span>
+                                  </div>
+                                  <span className="text-cyan-400 font-bold ml-2">{c.code}</span>
+                                </button>
+                              ))}
+                            </motion.div>
+                          </>
+                        )}
+                      </AnimatePresence>
                     </div>
+
+                    {/* Phone Input inside the unified field */}
+                    <input
+                      type="text"
+                      required
+                      value={mobileMoneyNumber}
+                      onChange={(e) => {
+                        setMobileMoneyNumber(e.target.value);
+                        if (paymentError) setPaymentError('');
+                      }}
+                      placeholder="Saisissez votre numéro"
+                      className="w-full bg-transparent border-0 py-3.5 pl-3 pr-4 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-0 font-mono"
+                    />
                   </div>
                 </div>
 
-                {/* ERRORS */}
+                {/* ERROR FEEDBACK DISPLAY */}
                 <AnimatePresence>
                   {paymentError && (
                     <motion.div 
@@ -1330,76 +1362,107 @@ export default function LaunchRegistration({
                       exit={{ opacity: 0, height: 0 }}
                       className="p-3 rounded-xl bg-red-950/40 border border-red-500/20 text-red-300 text-xs font-mono flex items-center gap-2 text-left"
                     >
-                      <ShieldAlert className="w-4 h-4 text-red-400 shrink-0" />
+                      <ShieldAlert className="w-4.5 h-4.5 text-red-400 shrink-0" />
                       <span>{paymentError}</span>
                     </motion.div>
                   )}
                 </AnimatePresence>
 
-                {/* THE MANDATED ACTION BUTTON WITH EXACT WORDING: Finaliser mon accès */}
-                <button
-                  type="button"
-                  onClick={handlePaymentSubmit}
-                  className="w-full py-4 px-4 rounded-xl bg-gradient-to-r from-cyan-500 via-teal-500 to-emerald-500 text-slate-950 font-sans font-black tracking-wider text-sm shadow-[0_0_30px_rgba(6,182,212,0.35)] hover:shadow-[0_0_40px_rgba(6,182,212,0.5)] hover:scale-[1.01] active:scale-[0.99] transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Lock className="w-4 h-4 text-slate-950 fill-slate-950" />
-                  <span>Finaliser mon accès</span>
-                </button>
+                {/* CTAs */}
+                <div className="space-y-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={handlePaymentSubmit}
+                    disabled={isSubmitting}
+                    className="w-full py-4 px-4 rounded-xl bg-gradient-to-r from-cyan-400 via-teal-500 to-emerald-400 text-slate-950 font-sans font-black tracking-wider text-sm shadow-[0_0_25px_rgba(6,182,212,0.3)] hover:shadow-[0_0_40px_rgba(6,182,212,0.5)] hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 transition-all duration-300 flex items-center justify-center gap-2.5 cursor-pointer"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                        <span className="font-mono tracking-widest text-xs">COMMUNICATION SÉCURISÉE...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="w-4 h-4 text-slate-950 fill-slate-950 stroke-[3]" />
+                        <span>Finaliser mon accès</span>
+                      </>
+                    )}
+                  </button>
+
+                  {/* 20 000 DISCOUNT BENEFIT */}
+                  <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium space-y-1 mt-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">🎁</span>
+                      <strong className="text-white font-bold uppercase tracking-wide">Réduction de 20 000 FCFA appliquée</strong>
+                    </div>
+                    <p className="text-[11px] text-gray-300 font-light leading-relaxed pl-6">
+                      Le tarif d'adhésion a été automatiquement réduit de <span className="line-through text-gray-500 font-normal">29 900 FCFA</span> à seulement <strong className="text-cyan-400 font-extrabold">{localization.amountString}</strong> pour votre zone aujourd'hui.
+                    </p>
+                  </div>
+
+                  {/* PREMIUM BENEFITS STACK */}
+                  <div className="bg-slate-950/60 rounded-2xl p-5 border border-white/5 space-y-4 mt-4 text-left">
+                    <h3 className="text-sm font-extrabold text-white uppercase tracking-tight flex items-center gap-2 mb-2 border-b border-white/5 pb-2">
+                      <span>🚀</span>
+                      <span>Ce que votre accès à MZ+ vous permettra de faire</span>
+                    </h3>
+                    
+                    <div className="flex items-start gap-3 text-xs sm:text-sm">
+                      <span className="text-base shrink-0 select-none mt-0.5">🧠</span>
+                      <p className="text-gray-300 font-light leading-relaxed">
+                        <strong className="text-white font-semibold">Développer les compétences</strong> nécessaires pour construire votre liberté financière.
+                      </p>
+                    </div>
+                    
+                    <div className="flex items-start gap-3 text-xs sm:text-sm border-t border-white/[0.03] pt-3">
+                      <span className="text-base shrink-0 select-none mt-0.5">💸</span>
+                      <p className="text-gray-300 font-light leading-relaxed">
+                        <strong className="text-white font-semibold">Générer des revenus de plusieurs façons</strong> grâce au système MZ+.
+                      </p>
+                    </div>
+
+                    <div className="flex items-start gap-3 text-xs sm:text-sm border-t border-white/[0.03] pt-3">
+                      <span className="text-base shrink-0 select-none mt-0.5">🎯</span>
+                      <p className="text-gray-300 font-light leading-relaxed">
+                        <strong className="text-white font-semibold">Passer à l'action avec un plan clair</strong>, étape par étape, sans avancer seul.
+                      </p>
+                    </div>
+
+                    <div className="flex items-start gap-3 text-xs sm:text-sm border-t border-white/[0.03] pt-3">
+                      <span className="text-base shrink-0 select-none mt-0.5">👥</span>
+                      <p className="text-gray-300 font-light leading-relaxed">
+                        <strong className="text-white font-semibold">Rejoindre une communauté ambitieuse</strong> qui évolue vers un même objectif : la liberté financière.
+                      </p>
+                    </div>
+
+                    <div className="flex items-start gap-3 text-xs sm:text-sm border-t border-white/[0.03] pt-3">
+                      <span className="text-base shrink-0 select-none mt-0.5">📈</span>
+                      <p className="text-gray-300 font-light leading-relaxed">
+                        <strong className="text-white font-semibold">Construire des revenus sur le long terme</strong> grâce à des méthodes structurées et applicables.
+                      </p>
+                    </div>
+
+                    <div className="flex items-start gap-3 text-xs sm:text-sm border-t border-white/[0.03] pt-3">
+                      <span className="text-base shrink-0 select-none mt-0.5">🔥</span>
+                      <p className="text-gray-300 font-light leading-relaxed">
+                        <strong className="text-white font-semibold">Transformer votre motivation en actions concrètes</strong> et commencer à bâtir un véritable projet.
+                      </p>
+                    </div>
+                  </div>
+                </div>
 
                 {/* BACK BUTTON */}
-                <button
-                  type="button"
-                  onClick={() => setRegistrationStep('form')}
-                  className="w-full py-1 text-xs font-mono text-gray-400 hover:text-white transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                  <span>Retour au formulaire de candidature</span>
-                </button>
-
-                {/* SECURE LABELS */}
-                <div className="pt-3.5 border-t border-white/[0.03] flex items-center justify-between text-[8px] font-mono text-gray-500">
-                  <span className="flex items-center gap-1">🛡️ ENCRYPTATION SSL SECURISE</span>
-                  <span className="flex items-center gap-1">🏦 STANDARD CHARIOW CERTIFIÉ</span>
+                <div className="pt-2 border-t border-white/[0.03] flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => setRegistrationStep('form')}
+                    className="text-[11px] font-mono text-gray-500 hover:text-white transition-colors flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    <span>Retourner au formulaire de candidature</span>
+                  </button>
                 </div>
-              </div>
 
-              {/* OUTCOMES VISUALIZATION (Visualisez votre futur) */}
-              <div className="bg-slate-900/40 border border-white/5 rounded-3xl p-5 sm:p-6 text-left space-y-4 shadow-[0_15px_30px_rgba(0,0,0,0.3)]">
-                <h3 className="text-xs font-mono font-bold text-cyan-400 uppercase tracking-widest block">
-                  🎓 Ce qui va se passer ensuite :
-                </h3>
-                
-                <div className="space-y-4">
-                  <div className="flex items-start gap-3">
-                    <span className="text-base select-none">🎓</span>
-                    <div className="space-y-0.5">
-                      <h4 className="text-xs font-bold text-white uppercase tracking-wider">Débloquer l'Académie</h4>
-                      <p className="text-[11px] text-gray-400 leading-relaxed font-light">
-                        Accès complet à vie aux modules d'apprentissage financier, plans d'investissements et secrets de génération de richesse de MZ+.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3 border-t border-white/[0.03] pt-3.5">
-                    <span className="text-base select-none">💼</span>
-                    <div className="space-y-0.5">
-                      <h4 className="text-xs font-bold text-white uppercase tracking-wider">Accéder au Business</h4>
-                      <p className="text-[11px] text-gray-400 leading-relaxed font-light">
-                        Lancez des opportunités d'affaires certifiées et accédez aux structures à haut rendement conçues par l'écosystème.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3 border-t border-white/[0.03] pt-3.5">
-                    <span className="text-base select-none">👥</span>
-                    <div className="space-y-0.5">
-                      <h4 className="text-xs font-bold text-white uppercase tracking-wider">Rejoindre la Communauté</h4>
-                      <p className="text-[11px] text-gray-400 leading-relaxed font-light">
-                        Intégrez directement des salons d'échanges privés réunissant des mentors millionnaires et des centaines de membres.
-                      </p>
-                    </div>
-                  </div>
-                </div>
               </div>
             </motion.div>
           )}
@@ -1480,6 +1543,46 @@ export default function LaunchRegistration({
                 <p className="text-[10px] text-gray-500 font-mono">
                   SÉCURITÉ INTACTE : Ne rechargez pas cette page pour éviter un doublon.
                 </p>
+              </div>
+            </motion.div>
+          )}
+
+          {/* STEP 3.8: FINALIZING REGISTRATION TRANSITION LOADER */}
+          {registrationStep === 'finalizing_redirect' && (
+            <motion.div
+              key="finalizing-redirect"
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              className="space-y-6 py-8 text-center max-w-md mx-auto"
+            >
+              <div className="bg-slate-900 border border-white/5 rounded-3xl p-8 sm:p-10 backdrop-blur-xl shadow-2xl flex flex-col items-center justify-center space-y-6">
+                
+                {/* Custom Elegant Spin Loader */}
+                <div className="relative flex items-center justify-center">
+                  {/* Outer glowing pulsing ring */}
+                  <div className="w-20 h-20 rounded-full border-2 border-cyan-500/10 animate-pulse absolute" />
+                  
+                  {/* Spinning loader */}
+                  <div className="w-16 h-16 rounded-full border-4 border-white/5 border-t-cyan-400 animate-spin" />
+                  
+                  {/* Inner brand dot */}
+                  <div className="w-4 h-4 rounded-full bg-cyan-400 animate-pulse absolute" />
+                </div>
+
+                <div className="space-y-3">
+                  <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">
+                    Finalisation de votre inscription
+                  </h2>
+                  
+                  <div className="flex items-center justify-center gap-1 text-cyan-400 font-mono text-xs sm:text-sm tracking-widest font-black uppercase">
+                    <span className="animate-pulse">Redirection en cours...</span>
+                  </div>
+
+                  <p className="text-xs text-gray-400 font-light max-w-xs mx-auto leading-relaxed pt-2">
+                    Veuillez ne pas fermer ni rafraîchir cette page. Nous configurons vos accès sécurisés au réseau MZ+.
+                  </p>
+                </div>
               </div>
             </motion.div>
           )}
