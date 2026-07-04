@@ -1,0 +1,58 @@
+[
+  {
+    "email": "test@test.com",
+    "whatsapp": "12345678",
+    "country_code": "",
+    "country_name": "",
+    "source": "general",
+    "created_at": "2026-07-03T18:16:19.725Z"
+  },
+  {
+    "email": "equipemzplus@gmail.com",
+    "whatsapp": "+2255930829829",
+    "country_code": "+225",
+    "country_name": "Côte d'Ivoire",
+    "source": "business",
+    "created_at": "2026-07-03T13:38:37.972+00:00"
+  },
+  {
+    "email": "equipus@gmail.com",
+    "whatsapp": "+2257878378748",
+    "country_code": "+225",
+    "country_name": "Côte d'Ivoire",
+    "source": "academy",
+    "created_at": "2026-07-03T15:07:10.479+00:00"
+  },
+  {
+    "email": "equipemzplkjkjs@gmail.com",
+    "whatsapp": "+225787837874899",
+    "country_code": "+225",
+    "country_name": "Côte d'Ivoire",
+    "source": "academy",
+    "created_at": "2026-07-03T16:10:40.923+00:00"
+  },
+  {
+    "email": "emzplus@gmail.com",
+    "whatsapp": "+2257878379098848",
+    "country_code": "+225",
+    "country_name": "Côte d'Ivoire",
+    "source": "academy",
+    "created_at": "2026-07-03T16:18:43.511+00:00"
+  },
+  {
+    "email": "mzplus@gmail.com",
+    "whatsapp": "+225982938783",
+    "country_code": "+225",
+    "country_name": "Côte d'Ivoire",
+    "source": "academy",
+    "created_at": "2026-07-03T17:58:31.131+00:00"
+  },
+  {
+    "email": "mr.sahaivan@gmail.com",
+    "whatsapp": "+237553366",
+    "country_code": "+237",
+    "country_name": "Cameroun",
+    "source": "academy",
+    "created_at": "2026-07-03T17:59:45.858+00:00"
+  }
+]
