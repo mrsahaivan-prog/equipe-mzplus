@@ -308,6 +308,7 @@ export default function LaunchRegistration({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
+  const [showPaymentCountryDropdown, setShowPaymentCountryDropdown] = useState(false);
   
   // Step 2: Preparing simulation states
   const [preparingProgress, setPreparingProgress] = useState(0);
@@ -622,28 +623,31 @@ export default function LaunchRegistration({
   useEffect(() => {
     if (registrationStep !== 'processing_payment') return;
 
-    // Reset timer
-    setCountdownTimer(45);
+    // Reset timer to 15 seconds as requested by user
+    setCountdownTimer(15);
 
     const messages = [
       'Chiffrement SSL de la transaction en cours...',
-      'Génération de la requête de paiement Mobile Money...',
-      `Envoi de l'ordre de débit de ${localization.amountString} à votre mobile...`,
-      'Attente de la validation du code PIN sur votre téléphone...',
+      'Établissement du tunnel de paiement sécurisé local...',
+      'Communication avec la passerelle bancaire certifiée...',
+      `Génération de l'ordre de débit de ${localization.amountString}...`,
+      'Veuillez surveiller votre écran de téléphone mobile...',
+      'En attente de la saisie de votre code PIN confidentiel...',
       'Saisie du code PIN détectée. Validation par la banque...',
-      'Sécurisation définitive de votre licence Platinum...'
+      'Authentification de la transaction approuvée avec succès !',
+      'Création et sécurisation de votre badge Élite MZ+...'
     ];
 
     let currentMsgIdx = 0;
     setPaymentProcessingMsg(messages[0]);
 
-    // Progress text messaging intervals
+    // Progress text messaging intervals (approx every 1.6 seconds to fit 15s)
     const textInterval = setInterval(() => {
       currentMsgIdx++;
       if (currentMsgIdx < messages.length) {
         setPaymentProcessingMsg(messages[currentMsgIdx]);
       }
-    }, 1800);
+    }, 1600);
 
     // Dynamic timer countdown simulation (shows a real ticking prompt on phone)
     const countdown = setInterval(() => {
@@ -656,17 +660,17 @@ export default function LaunchRegistration({
       });
     }, 1000);
 
-    // Direct redirection to success screen after a beautifully timed period (11 seconds of realistic anticipation)
+    // Direct redirection to success screen after exactly 15 seconds
     const timeout = setTimeout(() => {
       setRegistrationStep('success');
-    }, 10500);
+    }, 15000);
 
     return () => {
       clearInterval(textInterval);
       clearInterval(countdown);
       clearTimeout(timeout);
     };
-  }, [registrationStep]);
+  }, [registrationStep, localization.amountString]);
 
   const getSavedPassNumber = () => {
     return localStorage.getItem('mz_user_pass_number') || '482094';
@@ -1196,13 +1200,13 @@ export default function LaunchRegistration({
               <div className="text-center space-y-3">
                 <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-950/40 border border-emerald-500/30 text-emerald-400 text-xs font-mono tracking-wider font-extrabold uppercase">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                  <span>💳 Étape 3 : Paiement sécurisé par Mobile Money</span>
+                  <span>💳 Étape 3 : Paiement Sécurisé Chariow</span>
                 </div>
-                <h1 className="text-xl sm:text-2xl font-black text-white uppercase">
-                  Votre demande est prête.
+                <h1 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">
+                  Finalisation de votre Admission
                 </h1>
                 <p className="text-xs sm:text-sm text-gray-300 font-light max-w-sm mx-auto leading-relaxed">
-                  Finalisez votre inscription en effectuant le paiement sécurisé afin d'obtenir votre accès à MZ+.
+                  Vous êtes à un pas d'activer votre espace membre MZ+. Réglez vos frais d'accès sécurisés ci-dessous.
                 </p>
               </div>
 
@@ -1226,60 +1230,93 @@ export default function LaunchRegistration({
 
                 <div className="space-y-5 text-left">
                   
-                  {/* SELECT OPERATOR FROM COUNTRY LIST */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-mono text-gray-400 uppercase tracking-wider block font-bold">
-                      Sélectionnez votre moyen de paiement ({selectedCountry.name})
-                    </label>
-                    <div className="grid grid-cols-2 gap-2.5">
-                      {localization.operators.map((op) => (
-                        <button
-                          key={op.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedOperator(op.id);
-                            if (paymentError) setPaymentError('');
-                          }}
-                          className={`p-3.5 rounded-xl border text-xs font-mono font-bold flex items-center gap-2 justify-center transition-all duration-300 hover:scale-[1.01] cursor-pointer ${
-                            selectedOperator === op.id 
-                              ? 'border-cyan-400 bg-cyan-950/40 text-white shadow-[0_0_15px_rgba(6,182,212,0.15)] ring-1 ring-cyan-500/30' 
-                              : op.bgClass
-                          }`}
-                        >
-                          {/* Colored indicator badge */}
-                          <span 
-                            className="w-2.5 h-2.5 rounded-full shrink-0" 
-                            style={{ backgroundColor: op.logoColor }}
-                          />
-                          <span className="truncate">{op.name}</span>
-                          {selectedOperator === op.id && (
-                            <Check className="w-3.5 h-3.5 text-cyan-400 shrink-0 ml-auto" />
-                          )}
-                        </button>
-                      ))}
+                  {/* TRUST-CERTIFIED PASSERELLE DESCRIPTION (NO RAW ORANGE MONEY BUTTONS) */}
+                  <div className="p-4 bg-slate-950 rounded-2xl border border-white/5 space-y-2.5 shadow-inner">
+                    <div className="flex items-center gap-1.5 pb-1.5 border-b border-white/[0.04]">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                      <span className="text-[9px] font-mono text-emerald-400 uppercase tracking-widest font-black">
+                        PASSERELLE DE PAIEMENT CERTIFIÉE CHARIOW
+                      </span>
                     </div>
+                    <p className="text-[11px] text-gray-400 font-light leading-relaxed">
+                      Notre passerelle officielle prend en charge de façon sécurisée les <strong className="text-white">Portefeuilles Mobiles nationaux</strong> (Wave, Orange Money, MTN MoMo, Moov, Airtel, Bankily, etc.) ainsi que les <strong className="text-white">Cartes Bancaires</strong> internationales selon votre pays.
+                    </p>
                   </div>
 
-                  {/* MOBILE MONEY PHONE NUMBER INPUT */}
+                  {/* MOBILE MONEY PHONE NUMBER INPUT WITH INTERACTIVE COUNTRY SELECTOR STYLE */}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-mono text-gray-400 uppercase tracking-wider block font-bold">
-                      {selectedOperator && selectedOperator !== 'card' && selectedOperator !== 'paypal'
-                        ? `Numéro Mobile Money (${localization.operators.find(o => o.id === selectedOperator)?.name})`
-                        : "Numéro de Facturation / Téléphone"}
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        required
-                        value={mobileMoneyNumber}
-                        onChange={(e) => {
-                          setMobileMoneyNumber(e.target.value);
-                          if (paymentError) setPaymentError('');
-                        }}
-                        placeholder="Ex: +225 07 12 34 56"
-                        className="w-full pl-11 pr-4 py-3 bg-slate-950 border border-white/5 rounded-xl text-sm text-white placeholder-gray-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all font-mono"
-                      />
-                      <Smartphone className="absolute left-4 top-3.5 w-4.5 h-4.5 text-gray-500" />
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-mono text-gray-400 uppercase tracking-wider block font-bold">
+                        Téléphone de Facturation ({selectedCountry.name})
+                      </label>
+                      <span className="text-[9px] font-mono text-gray-500 uppercase">Indicatif modifiable</span>
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      {/* Country Flag Selector on Step 3 as requested */}
+                      <div className="relative shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setShowPaymentCountryDropdown(!showPaymentCountryDropdown)}
+                          className="flex items-center gap-1.5 px-3 py-3 bg-slate-950 border border-white/5 rounded-xl text-sm font-mono text-white focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all cursor-pointer hover:border-white/10"
+                        >
+                          <span className="text-base leading-none select-none">{selectedCountry.flag}</span>
+                          <span className="text-xs font-bold text-gray-300">{selectedCountry.code}</span>
+                          <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
+                        </button>
+
+                        <AnimatePresence>
+                          {showPaymentCountryDropdown && (
+                            <>
+                              <div 
+                                className="fixed inset-0 z-[100]" 
+                                onClick={() => setShowPaymentCountryDropdown(false)} 
+                              />
+                              <motion.div
+                                initial={{ opacity: 0, y: 5 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 5 }}
+                                className="absolute left-0 mt-1.5 w-60 max-h-60 overflow-y-auto bg-slate-950 border border-white/10 rounded-xl shadow-2xl z-[101] divide-y divide-white/[0.03]"
+                              >
+                                {COUNTRIES.map((c, i) => (
+                                  <button
+                                    key={i}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedCountry(c);
+                                      setShowPaymentCountryDropdown(false);
+                                      if (paymentError) setPaymentError('');
+                                    }}
+                                    className="w-full px-3.5 py-2.5 text-left hover:bg-slate-900 flex items-center justify-between text-xs font-mono text-gray-300 hover:text-white transition-colors cursor-pointer"
+                                  >
+                                    <div className="flex items-center gap-2 truncate">
+                                      <span className="text-base leading-none">{c.flag}</span>
+                                      <span className="truncate">{c.name}</span>
+                                    </div>
+                                    <span className="text-cyan-400 font-bold ml-2">{c.code}</span>
+                                  </button>
+                                ))}
+                              </motion.div>
+                            </>
+                          )}
+                        </AnimatePresence>
+                      </div>
+
+                      {/* Phone Input */}
+                      <div className="relative flex-1">
+                        <input
+                          type="text"
+                          required
+                          value={mobileMoneyNumber}
+                          onChange={(e) => {
+                            setMobileMoneyNumber(e.target.value);
+                            if (paymentError) setPaymentError('');
+                          }}
+                          placeholder="Ex: 07 12 34 56"
+                          className="w-full pl-11 pr-4 py-3 bg-slate-950 border border-white/5 rounded-xl text-sm text-white placeholder-gray-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all font-mono"
+                        />
+                        <Smartphone className="absolute left-4 top-3.5 w-4.5 h-4.5 text-gray-500" />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1321,8 +1358,8 @@ export default function LaunchRegistration({
 
                 {/* SECURE LABELS */}
                 <div className="pt-3.5 border-t border-white/[0.03] flex items-center justify-between text-[8px] font-mono text-gray-500">
-                  <span className="flex items-center gap-1">🛡️ ENCRYPTATION SSL MILITAIRE</span>
-                  <span className="flex items-center gap-1">🏦 STANDARD MOBILE MONEY CERTIFIÉ</span>
+                  <span className="flex items-center gap-1">🛡️ ENCRYPTATION SSL SECURISE</span>
+                  <span className="flex items-center gap-1">🏦 STANDARD CHARIOW CERTIFIÉ</span>
                 </div>
               </div>
 
@@ -1390,9 +1427,12 @@ export default function LaunchRegistration({
                   <span className="text-[9px] font-mono tracking-[0.2em] text-cyan-400 uppercase font-black block">
                     TRANSACTION CRYPTÉE MULTI-CANAL PCI-DSS
                   </span>
-                  <h2 className="text-lg font-black text-white uppercase tracking-wide">
-                    Envoi de la requête de paiement...
+                  <h2 className="text-xl font-black text-white uppercase tracking-tight">
+                    Vous êtes presque à la fin !
                   </h2>
+                  <p className="text-xs sm:text-sm text-gray-300 font-light leading-relaxed max-w-xs mx-auto">
+                    Il vous manque une étape avant de prendre votre place.
+                  </p>
                   <p className="text-xs text-amber-300 font-mono bg-amber-950/20 border border-amber-500/10 px-3 py-1 rounded-full inline-block animate-pulse">
                     ⏱️ Validation attendue d'ici : {countdownTimer}s
                   </p>
@@ -1400,24 +1440,24 @@ export default function LaunchRegistration({
                   {/* Step info list showing real world actions */}
                   <div className="bg-slate-950 rounded-2xl p-4.5 border border-white/5 text-left space-y-3 mt-4">
                     <h3 className="text-[10px] font-mono font-bold text-gray-400 uppercase tracking-widest block text-center border-b border-white/5 pb-2 mb-2">
-                      INSTRUCTIONS DE DÉBIT MOBILE MONEY
+                      INSTRUCTIONS DE VALIDATION SÉCURISÉE
                     </h3>
                     <div className="flex gap-2 text-xs">
                       <span className="font-mono text-cyan-400 font-black">1.</span>
                       <p className="text-gray-300 font-light leading-relaxed">
-                        Un message pop-up de votre opérateur (<strong className="text-white">MTN, Wave, Orange Money</strong>, etc.) va apparaître instantanément sur l'écran de votre téléphone.
+                        Un message de confirmation sécurisé de votre moyen de facturation local va apparaître instantanément sur votre écran de téléphone.
                       </p>
                     </div>
                     <div className="flex gap-2 text-xs border-t border-white/[0.03] pt-2">
                       <span className="font-mono text-cyan-400 font-black">2.</span>
                       <p className="text-gray-300 font-light leading-relaxed">
-                        Saisissez votre <strong className="text-white">Code PIN confidentiel</strong> pour approuver le paiement sécurisé de <strong className="text-cyan-400">{localization.amountString}</strong>.
+                        Saisissez votre <strong className="text-white">Code confidentiel</strong> pour approuver le règlement hautement sécurisé de <strong className="text-cyan-400">{localization.amountString}</strong>.
                       </p>
                     </div>
                     <div className="flex gap-2 text-xs border-t border-white/[0.03] pt-2">
                       <span className="font-mono text-cyan-400 font-black">3.</span>
                       <p className="text-gray-300 font-light leading-relaxed">
-                        Une fois validé, la confirmation est reçue instantanément par notre serveur et votre espace Élite s'active automatiquement.
+                        Une fois validé, la confirmation est instantanée et votre espace d'accès Élite MZ+ s'active immédiatement.
                       </p>
                     </div>
                   </div>
@@ -1429,7 +1469,7 @@ export default function LaunchRegistration({
                       className="h-full rounded-full bg-gradient-to-r from-cyan-500 via-teal-500 to-emerald-400"
                       initial={{ width: '0%' }}
                       animate={{ width: '100%' }}
-                      transition={{ duration: 10.5, ease: 'linear' }}
+                      transition={{ duration: 15.0, ease: 'linear' }}
                     />
                   </div>
                   <p className="text-[10px] text-cyan-400 font-mono animate-pulse">
