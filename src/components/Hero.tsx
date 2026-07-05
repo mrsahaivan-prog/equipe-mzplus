@@ -69,45 +69,27 @@ export default function Hero({ onShowPreviewClick, onJoinWaitlistClick, isLaunch
           de cette génération.
         </motion.h1>
 
-        {/* MAIN CALL TO ACTION - Dual Premium Buttons */}
+        {/* MAIN CALL TO ACTION - Single Highly Prominent Button */}
         <motion.div 
           variants={itemVariants}
-          className="flex flex-col sm:flex-row items-center gap-4 relative justify-center w-full max-w-2xl px-4"
+          className="flex flex-col sm:flex-row items-center gap-4 relative justify-center w-full max-w-lg px-4"
         >
           {isLaunched ? (
-            <>
-              <button
-                onClick={onJoinWaitlistClick}
-                className="w-full sm:w-1/2 group relative px-8 py-4.5 rounded-xl bg-gradient-to-r from-cyan-400 via-cyan-300 to-blue-500 text-slate-950 font-sans font-black tracking-wide text-sm shadow-[0_0_30px_rgba(6,182,212,0.25)] hover:shadow-[0_0_40px_rgba(6,182,212,0.4)] hover:scale-[1.02] active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2.5 transition-all duration-300"
-              >
-                <span>S'inscrire à MZ+</span>
-                <Sparkles className="w-4 h-4 text-slate-950 group-hover:scale-110 transition-transform duration-300" />
-              </button>
-
-              <button
-                onClick={onShowPreviewClick}
-                className="w-full sm:w-1/2 group relative px-8 py-4.5 rounded-xl border border-white/10 bg-slate-950/40 hover:bg-slate-900/60 hover:border-cyan-500/30 text-white font-sans font-bold tracking-wide text-sm transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2.5"
-              >
-                <span>Découvrir l'aperçu de la plateforme</span>
-              </button>
-            </>
+            <button
+              onClick={onShowPreviewClick}
+              className="w-full sm:w-3/4 mx-auto group relative px-8 py-4.5 rounded-xl bg-gradient-to-r from-cyan-400 via-cyan-300 to-blue-500 text-slate-950 font-sans font-black tracking-wide text-sm shadow-[0_0_30px_rgba(6,182,212,0.25)] hover:shadow-[0_0_40px_rgba(6,182,212,0.4)] hover:scale-[1.02] active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2.5 transition-all duration-300"
+            >
+              <span>Découvrir l'aperçu de la plateforme</span>
+              <ArrowDown className="w-4 h-4 text-slate-950 group-hover:translate-y-0.5 transition-transform duration-300" />
+            </button>
           ) : (
-            <>
-              <button
-                onClick={onJoinWaitlistClick}
-                className="w-full sm:w-1/2 group relative px-8 py-4.5 rounded-xl bg-gradient-to-r from-cyan-400 via-cyan-300 to-blue-500 text-slate-950 font-sans font-black tracking-wide text-sm shadow-[0_0_30px_rgba(6,182,212,0.25)] hover:shadow-[0_0_40px_rgba(6,182,212,0.4)] hover:scale-[1.02] active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2.5 transition-all duration-300"
-              >
-                <span>Rejoindre la liste d'attente</span>
-                <Sparkles className="w-4 h-4 text-slate-950 group-hover:scale-110 transition-transform duration-300" />
-              </button>
-
-              <button
-                onClick={onShowPreviewClick}
-                className="w-full sm:w-1/2 group relative px-8 py-4.5 rounded-xl border border-white/10 bg-slate-950/40 hover:bg-slate-900/60 hover:border-cyan-500/30 text-white font-sans font-bold tracking-wide text-sm transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2.5"
-              >
-                <span>Découvrir l'aperçu de la plateforme</span>
-              </button>
-            </>
+            <button
+              onClick={onShowPreviewClick}
+              className="w-full sm:w-3/4 mx-auto group relative px-8 py-4.5 rounded-xl border border-cyan-500/30 bg-slate-950/80 hover:bg-slate-900/40 hover:border-cyan-400 text-cyan-300 font-sans font-black tracking-wide text-sm transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2.5 shadow-[0_0_30px_rgba(6,182,212,0.1)] hover:shadow-[0_0_40px_rgba(6,182,212,0.18)]"
+            >
+              <span>Découvrir l'aperçu de la plateforme</span>
+              <ArrowDown className="w-4 h-4 text-cyan-400 group-hover:translate-y-0.5 transition-transform duration-300" />
+            </button>
           )}
         </motion.div>
 
