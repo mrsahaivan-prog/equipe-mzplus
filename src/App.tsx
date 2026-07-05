@@ -186,12 +186,12 @@ export default function App() {
               {isLaunched && (
                 <div className="w-full bg-slate-950 border-b border-cyan-500/20 py-2.5 px-4 text-center text-xs font-mono text-cyan-400 font-extrabold uppercase tracking-wider flex items-center justify-center gap-2 relative z-50">
                   <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                  <span>🚀 Les inscriptions à MZ+ sont officiellement ouvertes !</span>
+                  <span>🚀 Accès à l'aperçu de la plateforme MZ+ disponible !</span>
                   <button 
-                    onClick={() => navigate('inscription')}
+                    onClick={handleShowPreview}
                     className="ml-3 px-3 py-1 bg-cyan-500 text-slate-950 rounded-lg text-[10px] font-sans font-black hover:bg-cyan-400 transition-colors cursor-pointer"
                   >
-                    DÉPOSER MA CANDIDATURE
+                    VOIR L'APERÇU
                   </button>
                 </div>
               )}
